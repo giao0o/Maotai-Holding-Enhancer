@@ -11,27 +11,34 @@ class DataLoader:
         self.symbol = symbol  # 贵州茅台
         self.index_symbol = index_symbol  # 沪深300
 
-    def get_daily_data(self, start_date, end_date):
+    def get_data(self, period="daily", start_date="20200101", end_date="20260101"):
         """
-        获取日线数据
+        获取指定周期的数据 (daily, weekly, monthly)
         """
-        print(f"正在获取 {self.symbol} 日线数据...")
-        df_stock = ak.stock_zh_a_hist(symbol=self.symbol.replace("sh", ""), period="daily", 
-                                     start_date=start_date, end_date=end_date, adjust="qfq")
-        df_stock['date'] = pd.to_datetime(df_stock['日期'])
-        df_stock.set_index('date', inplace=True)
-        
-        print(f"正在获取 {self.index_symbol} 指数数据...")
-        df_index = ak.stock_zh_index_daily(symbol=self.index_symbol)
-        df_index['date'] = pd.to_datetime(df_index['date'])
-        df_index.set_index('date', inplace=True)
-        
-        # 合并数据
-        df = df_stock[['开盘', '最高', '最低', '收盘', '成交量']].copy()
+        print(f"正在获取 {self.symbol} {period} 数据...")
+        df = ak.stock_zh_a_hist(symbol=self.symbol.replace("sh", ""), period=period, 
+                               start_date=start_date, end_date=end_date, adjust="qfq")
+        df['date'] = pd.to_datetime(df['日期'])
+        df.set_index('date', inplace=True)
+        df = df[['开盘', '最高', '最低', '收盘', '成交量']]
         df.columns = ['open', 'high', 'low', 'close', 'volume']
-        df['index_close'] = df_index['close']
+        return df
+
+    def get_multi_period_data(self, start_date, end_date):
+        """
+        获取日、周、月多周期数据
+        """
+        daily = self.get_data("daily", start_date, end_date)
+        weekly = self.get_data("weekly", start_date, end_date)
+        monthly = self.get_data("monthly", start_date, end_date)
         
-        return df.dropna()
+        # 获取指数数据作为参考
+        index_df = ak.stock_zh_index_daily(symbol=self.index_symbol)
+        index_df['date'] = pd.to_datetime(index_df['date'])
+        index_df.set_index('date', inplace=True)
+        
+        daily['index_close'] = index_df['close']
+        return daily, weekly, monthly
 
     def get_minute_data(self, period='1'):
         """
